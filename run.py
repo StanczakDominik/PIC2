@@ -2,13 +2,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 L=1
 NX = 32
-grid, dx = np.linspace(0,L,NX, retstep=True)
+grid, dx = np.linspace(0,L,NX, retstep=True, endpoint=False)
 
-T = 10
-NT=101
+T = 5
+NT=1001
 timegrid, dt = np.linspace(0,T,NT, retstep=True)
 
-
+charge_grid = np.zeros_like(grid)
+charge_history = np.empty((NT, NX))
 
 class ParticleSpecies:
     def __init__(self, N, PositionDistribution, VelocityDistribution, Mass, Charge):
@@ -33,6 +34,22 @@ class ParticleSpecies:
 
     def CleanupPositions(self):
         self.r = self.r % L
+
+    def CalculateChargeDensity(self):
+        """
+        A simple model for charge density deposition. Returns a grid-like array
+        With the sum of charges in them.
+        """
+        charge_grid = np.zeros_like(grid)
+        indices = (self.r//dx).astype(int)
+        # full_positions = indices*dx
+        # relative_positions = self.r-full_positions
+        #TODO: how to do this via arrays?
+        for particle_index, grid_index in enumerate(indices):
+            charge_grid[grid_index]+=self.q[particle_index]
+        charge_grid/=dx
+        return charge_grid
+
 
     def Update(self, dt, ElectricField, Step):
         self.r, self.v = Step(dt, ElectricField)
@@ -80,14 +97,18 @@ def SinElectricField(r):
     return -np.sin((r-L/2))
 
 N=200
-# Electrons = ParticleSpecies(N, RandomGaussian, RandomGaussian, 1, -1)
+Electrons = ParticleSpecies(N, RandomGaussian, RandomGaussian, 1, -1)
 Positrons = ParticleSpecies(N, RandomGaussian, RandomGaussian, 1, 1)
-Species = [Positrons]
-for t in timegrid:
+Species = [Positrons, Electrons]
+for i, t in enumerate(timegrid):
+    charge_grid[:]=0
     for species in Species:
-        # species.TextDiagnostics()
-        # print("Update")
+        charge_grid += species.CalculateChargeDensity()
         species.Update(dt, SinElectricField, species.SimpleStep)
-        # species.TextDiagnostics()
+    charge_history[i] = charge_grid
 for species in Species:
     species.PhasePlotDiagnostics()
+
+for chargesnapshot in charge_history[:]:
+    plt.plot(grid, chargesnapshot)
+plt.show()
