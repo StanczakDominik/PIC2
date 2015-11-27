@@ -5,11 +5,15 @@ NX = 32
 grid, dx = np.linspace(0,L,NX, retstep=True, endpoint=False)
 
 T = 5
-NT=1001
+NT = 1001
 timegrid, dt = np.linspace(0,T,NT, retstep=True)
 
 charge_grid = np.zeros_like(grid)
 charge_history = np.empty((NT, NX))
+electric_field_grid = np.zeros_like(grid)
+electric_field_history = np.empty((NT, NX))
+
+
 
 class ParticleSpecies:
     def __init__(self, N, PositionDistribution, VelocityDistribution, Mass, Charge):
@@ -90,6 +94,26 @@ def UniformElectricField(r):
     """
     return np.ones_like(r)
 
+def InterpolateElectricField(r):
+    field_array = np.zeros_like(r)
+
+    indices = (r//dx).astype(int)
+    full_positions = indices*dx
+    relative_positions = r-full_positions
+
+    #TODO: arrayize this
+    for particle_index, grid_index in indices(grid):
+        if grid_index==0:
+            pass
+        elif grid_index==31:
+            pass
+        else:
+            field_array[particle_index] = relative_positions[particle_index] *\
+                                    electric_field_grid[grid_index] +\
+                                    (relative_positions[particle_index]-dx)*\
+                                    electric_field_grid[grid_index+1]
+    return field_array
+
 def RampElectricField(r):
     return -(r-L/2)
 
@@ -109,6 +133,6 @@ for i, t in enumerate(timegrid):
 for species in Species:
     species.PhasePlotDiagnostics()
 
-for chargesnapshot in charge_history[:]:
+for index, chargesnapshot in enumerate(charge_history[:]):
     plt.plot(grid, chargesnapshot)
 plt.show()
