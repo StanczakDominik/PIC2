@@ -94,6 +94,21 @@ def UniformElectricField(r):
     """
     return np.ones_like(r)
 
+def PoissonSolver(charge_grid):
+    """
+    Assumes boundary conditions of
+    """
+    potential_grid = np.zeros_like(charge_grid)
+    for i, charge in enumerate(charge_grid[:-1]):
+        potential_grid[i] = 0.5*(charge*dx*dx + charge_grid[i-1]+charge_grid[i+1])
+    potential_grid[-1]=0.5*(charge_grid[-1]*dx*dx + charge_grid[-2]+charge_grid[0])
+    return potential_grid
+
+def FieldCalculation(potential_grid):
+    return np.gradient(potential_grid)
+
+
+
 def InterpolateElectricField(r):
     field_array = np.zeros_like(r)
 
@@ -102,7 +117,7 @@ def InterpolateElectricField(r):
     relative_positions = r-full_positions
 
     #TODO: arrayize this
-    for particle_index, grid_index in indices(grid):
+    for particle_index, grid_index in enumerate(indices):
         if grid_index==0:
             pass
         elif grid_index==31:
@@ -120,7 +135,7 @@ def RampElectricField(r):
 def SinElectricField(r):
     return -np.sin((r-L/2))
 
-N=200
+N=320
 Electrons = ParticleSpecies(N, RandomGaussian, RandomGaussian, 1, -1)
 Positrons = ParticleSpecies(N, RandomGaussian, RandomGaussian, 1, 1)
 Species = [Positrons, Electrons]
@@ -128,11 +143,18 @@ for i, t in enumerate(timegrid):
     charge_grid[:]=0
     for species in Species:
         charge_grid += species.CalculateChargeDensity()
-        species.Update(dt, SinElectricField, species.SimpleStep)
     charge_history[i] = charge_grid
+    electric_field_grid = FieldCalculation(PoissonSolver(charge_grid))
+    electric_field_history[i] = electric_field_grid
+
+    for species in Species:
+        species.Update(dt, InterpolateElectricField, species.SimpleStep)
 for species in Species:
     species.PhasePlotDiagnostics()
 
 for index, chargesnapshot in enumerate(charge_history[:]):
     plt.plot(grid, chargesnapshot)
+plt.show()
+for index, fieldsnapshot in enumerate(electric_field_history[:]):
+    plt.plot(grid, fieldsnapshot)
 plt.show()
