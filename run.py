@@ -1,10 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 L=1
 NX = 32
 grid, dx = np.linspace(0,L,NX, retstep=True, endpoint=False)
 
-T = 5
+T = 0.1
 NT = 1001
 timegrid, dt = np.linspace(0,T,NT, retstep=True)
 
@@ -105,7 +106,8 @@ def PoissonSolver(charge_grid):
     return potential_grid
 
 def FieldCalculation(potential_grid):
-    return np.gradient(potential_grid)
+    field = -np.gradient(potential_grid)
+    return field
 
 
 
@@ -123,9 +125,10 @@ def InterpolateElectricField(r):
         elif grid_index==31:
             pass
         else:
+            #TODO: this is probably incorrect somehow
             field_array[particle_index] = relative_positions[particle_index] *\
-                                    electric_field_grid[grid_index] +\
-                                    (relative_positions[particle_index]-dx)*\
+                                    electric_field_grid[grid_index]/dx +\
+                                    (relative_positions[particle_index]-dx)/dx*\
                                     electric_field_grid[grid_index+1]
     return field_array
 
@@ -135,10 +138,46 @@ def RampElectricField(r):
 def SinElectricField(r):
     return -np.sin((r-L/2))
 
-N=320
-Electrons = ParticleSpecies(N, RandomGaussian, RandomGaussian, 1, -1)
-Positrons = ParticleSpecies(N, RandomGaussian, RandomGaussian, 1, 1)
+def negative_ones(N):
+    return -np.ones(N)
+
+
+def AnimatedPhasePlotDiagnostics(species):
+    fig, ax = plt.subplots()
+    points = [0]*len(species)
+    for i, specie in enumerate(species):
+        points[i], = ax.plot(specie.r_history[0], specie.v_history[0], "o")
+    field, = ax.plot(grid, electric_field_history[0]/100, "co-")
+    plt.xlim(0,L)
+    plt.ylim(-5,5)
+    plt.grid()
+    gridpoints, = ax.plot(grid, np.zeros_like(grid), "ro-")
+    def animate(i):
+        for j, specie in enumerate(species):
+            points[j].set_xdata(specie.r_history[i])
+            points[j].set_ydata(specie.v_history[i])
+        field.set_ydata(electric_field_history[i]/100)
+        return points, field,
+    def init():
+        for j, specie in enumerate(species):
+            points[j].set_xdata(specie.r_history[0])
+            points[j].set_ydata(specie.v_history[0])
+        field.set_ydata(electric_field_history[0]/100)
+        return points, field,
+    ani = animation.FuncAnimation(fig, animate, np.arange(1,NT), init_func=init, interval=25, blit=False)
+    plt.show()
+
+
+
+
+N=3200
+Electrons = ParticleSpecies(N, RandomGaussian, np.ones, 1, -1)
+Positrons = ParticleSpecies(N, RandomGaussian, negative_ones, 1, 1)
 Species = [Positrons, Electrons]
+
+
+
+
 for i, t in enumerate(timegrid):
     charge_grid[:]=0
     for species in Species:
@@ -148,13 +187,15 @@ for i, t in enumerate(timegrid):
     electric_field_history[i] = electric_field_grid
 
     for species in Species:
-        species.Update(dt, InterpolateElectricField, species.SimpleStep)
-for species in Species:
-    species.PhasePlotDiagnostics()
+        species.Update(dt, InterpolateElectricField , species.SimpleStep)
 
-for index, chargesnapshot in enumerate(charge_history[:]):
-    plt.plot(grid, chargesnapshot)
-plt.show()
-for index, fieldsnapshot in enumerate(electric_field_history[:]):
-    plt.plot(grid, fieldsnapshot)
-plt.show()
+
+
+
+AnimatedPhasePlotDiagnostics(Species)
+# for index, chargesnapshot in enumerate(charge_history[:]):
+#     plt.plot(grid, chargesnapshot)
+# plt.show()
+# for index, fieldsnapshot in enumerate(electric_field_history[:]):
+#     plt.plot(grid, fieldsnapshot)
+# plt.show()
