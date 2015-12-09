@@ -1,31 +1,6 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-import numba
-from numba import jit
-
-L=1
-NX = 32
-grid, dx = np.linspace(0,L,NX, retstep=True, endpoint=False)
-
-SOR_omega = 2/(1+np.pi/NX)
-SOR_L2_target = 1e-8
-
-T = 0.1
-NT = 1001
-timegrid, dt = np.linspace(0,T,NT, retstep=True)
-
-field_scale=5000
-
-charge_grid = np.zeros_like(grid)
-charge_history = np.empty((NT, NX))
-electric_field_grid = np.zeros_like(grid)
-electric_field_history = np.empty((NT, NX))
-potential_history = np.empty((NT, NX))
-iterations_history = np.empty(NT)
-l2_diff_history = np.empty((NT, 20000))
-
-# plt.ion()
+from shared import *
+import fields
+import distributions
 
 class ParticleSpecies:
     def __init__(self, N, PositionDistribution, VelocityDistribution, Mass, Charge):
@@ -42,11 +17,9 @@ class ParticleSpecies:
         self.v_history = np.zeros((NT+1,N))
         self.r_history[0] = self.r
         self.v_history[0] = self.v
-    def Acceleration(self, ElectricField):
-        return ElectricField(self.r)*self.q/self.m
 
-    def SimpleStep(self, dt, ElectricField):
-        return self.r + self.v*dt, self.v+self.Acceleration(ElectricField)*dt
+    def SimpleStep(self, dt, ElectricField, ElectricFieldGrid=False):
+        return self.r + self.v*dt, self.v+dt*ElectricField(self.r, ElectricFieldGrid)*self.q/self.m
 
     def CleanupPositions(self):
         self.r = self.r % L
@@ -71,8 +44,8 @@ class ParticleSpecies:
         return charge_grid
 
 
-    def Update(self, dt, ElectricField, Step):
-        self.r, self.v = Step(dt, ElectricField)
+    def Update(self, dt, ElectricField, Step, ElectricFieldGrid=False):
+        self.r, self.v = Step(dt, ElectricField, ElectricFieldGrid)
         self.CleanupPositions()
         self.iteration+=1
         self.r_history[self.iteration]=self.r
@@ -97,24 +70,6 @@ class ParticleSpecies:
         plt.ylabel(r'v_x')
         plt.show()
 
-def RandomGaussian(N):
-    return np.random.normal(0, 1, N)
-
-def RandomUniform(N):
-    return np.random.random(N)
-
-def RandomUniformVel(N):
-    return RandomUniform(N)-0.5
-
-def NoElectricField(r):
-    return np.zeros_like(r)
-
-def UniformElectricField(r):
-    """
-    Takes particle positions and returns their E acceleration
-    Simple model assumes acceleration by a constant factor
-    """
-    return np.ones_like(r)
 
 @jit(nopython=True)
 def PoissonSolver(charge_grid, current_potential):
@@ -151,54 +106,13 @@ def FieldCalculation(potential_grid):
     field = -np.gradient(potential_grid, dx, edge_order=2)
     return field
 
-def RampElectricField(r):
-    return -(r-L/2)
 
-def SinElectricField(r):
-    return -np.sin((r-L/2))
-
-def InterpolateElectricField(r):
-    field_array = np.zeros_like(r)
-
-    indices = (r//dx).astype(int)
-    full_positions = indices*dx
-    relative_positions = r-full_positions
-
-    #TODO: arrayize this
-    for particle_index, grid_index in enumerate(indices):
-        if grid_index==0:
-            pass
-            # field_array[particle_index] = relative_positions[particle_index] *\
-            #                         electric_field_grid[-1]/dx +\
-            #                         (relative_positions[particle_index]-dx)/dx*\
-            #                         electric_field_grid[grid_index+1]
-        elif grid_index==31:
-            pass
-            # field_array[particle_index] = relative_positions[particle_index] *\
-            #                         electric_field_grid[grid_index]/dx +\
-            #                         (relative_positions[particle_index]-dx)/dx*\
-            #                         electric_field_grid[grid_index+1]
-        else:
-            #TODO: this is probably incorrect somehow
-            field_array[particle_index] = relative_positions[particle_index] *\
-                                    electric_field_grid[grid_index]/dx +\
-                                    (relative_positions[particle_index]-dx)/dx*\
-                                    electric_field_grid[grid_index+1]
-    return field_array #TODO: minus tutaj?
-
-def NonRandomUniform(N):
-    return np.linspace(0,1,N)
-
-
-
-def negative_ones(N):
-    return -np.ones(N)
 
 def AnimatedPhasePlotDiagnostics(species):
     fig, ax = plt.subplots()
     points = [0]*len(species)
     for i, specie in enumerate(species):
-        points[i], = ax.plot(specie.r_history[0], specie.v_history[0], "o", label=i)
+        points[i], = ax.plot(specie.r_history[0], specie.v_history[0], "o", label=i, alpha=0.5)
     field, = ax.plot(grid, electric_field_history[0], "co-", label="Electric field")
     potential, = ax.plot(grid, potential_history[0], "yo-", label="Potential")
     charge, = ax.plot(grid, charge_history[0], "go-", label="Charge density")
@@ -223,7 +137,9 @@ def AnimatedPhasePlotDiagnostics(species):
         potential.set_ydata(potential_history[0]/field_scale)
         return points, field, charge, potential,
     plt.legend()
-    ani = animation.FuncAnimation(fig, animate, np.arange(1,NT), init_func=init, interval=25, blit=False)
+    print("Ready to start animation")
+    ani = animation.FuncAnimation(fig, animate, np.arange(1,NT), init_func=init, interval=25, blit=False, repeat=True)
+    ani.save(time.strftime("%y-%m-%d_%H-%M-%S") + ".mp4", writer='mencoder', fps=30)
     plt.show()
 
 def AnimatedFieldDiagnostics():
@@ -246,13 +162,12 @@ def AnimatedFieldDiagnostics():
         potential.set_ydata(potential_history[0]/field_scale)
         return field, charge, potential
     plt.legend()
-    ani = animation.FuncAnimation(fig, animate, np.arange(1,NT), init_func=init, interval=25, blit=False)
+    ani = animation.FuncAnimation(fig, animate, np.arange(1,NT), init_func=init, interval=25, blit=False, repeat=True)
+    ani.save('test.mp4')
     plt.show()
 
-
-N=3200
-Electrons = ParticleSpecies(N, NonRandomUniform, RandomUniformVel, 1, -1)
-Positrons = ParticleSpecies(N, NonRandomUniform, RandomUniformVel, 1, -1)
+Electrons = ParticleSpecies(N, distributions.NonRandomUniform, distributions.RandomUniformVel, 1, -1)
+Positrons = ParticleSpecies(N, distributions.NonRandomUniform, distributions.RandomUniformVel, 1, -1)
 Species = [Positrons, Electrons]
 
 
@@ -265,15 +180,15 @@ for i, t in enumerate(timegrid):
     charge_history[i] = charge_grid
     potential_grid, iterations, l2_diff = PoissonSolver(charge_grid, potential_grid)
     potential_history[i] = potential_grid
-    electric_field_grid = FieldCalculation(potential_grid)
+    # electric_field_grid = FieldCalculation(potential_grid)
+    electric_field_grid = fields.UniformElectricField(grid)
     electric_field_history[i] = electric_field_grid
     iterations_history[i] = iterations
     l2_diff_history[i] = l2_diff
 
     for species in Species:
-        species.Update(dt, SinElectricField , species.SimpleStep)
-
-
+        species.Update(dt, fields.InterpolateElectricField, species.SimpleStep)
+print("Finished loop...")
 
 # AnimatedFieldDiagnostics()
 AnimatedPhasePlotDiagnostics(Species)
