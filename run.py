@@ -11,8 +11,8 @@ grid, dx = np.linspace(0,L,NX, retstep=True, endpoint=False)
 SOR_omega = 2/(1+np.pi/NX)
 SOR_L2_target = 1e-8
 
-T = 0.001
-NT = 101
+T = 0.1
+NT = 1001
 timegrid, dt = np.linspace(0,T,NT, retstep=True)
 
 field_scale=5000
@@ -25,7 +25,7 @@ potential_history = np.empty((NT, NX))
 iterations_history = np.empty(NT)
 l2_diff_history = np.empty((NT, 20000))
 
-plt.ion()
+# plt.ion()
 
 class ParticleSpecies:
     def __init__(self, N, PositionDistribution, VelocityDistribution, Mass, Charge):
@@ -151,7 +151,11 @@ def FieldCalculation(potential_grid):
     field = -np.gradient(potential_grid, dx, edge_order=2)
     return field
 
+def RampElectricField(r):
+    return -(r-L/2)
 
+def SinElectricField(r):
+    return -np.sin((r-L/2))
 
 def InterpolateElectricField(r):
     field_array = np.zeros_like(r)
@@ -185,12 +189,7 @@ def InterpolateElectricField(r):
 def NonRandomUniform(N):
     return np.linspace(0,1,N)
 
-@jit
-def RampElectricField(r):
-    return -(r-L/2)
 
-def SinElectricField(r):
-    return -np.sin((r-L/2))
 
 def negative_ones(N):
     return -np.ones(N)
@@ -204,7 +203,7 @@ def AnimatedPhasePlotDiagnostics(species):
     potential, = ax.plot(grid, potential_history[0], "yo-", label="Potential")
     charge, = ax.plot(grid, charge_history[0], "go-", label="Charge density")
     plt.xlim(0,L)
-    # plt.ylim(-5,5)
+    plt.ylim(-10,10)
     plt.grid()
     gridpoints, = ax.plot(grid, np.zeros_like(grid), "ro", label="Grid")
     def animate(i):
@@ -223,7 +222,7 @@ def AnimatedPhasePlotDiagnostics(species):
         charge.set_ydata(charge_history[0]/field_scale)
         potential.set_ydata(potential_history[0]/field_scale)
         return points, field, charge, potential,
-    # plt.legend()
+    plt.legend()
     ani = animation.FuncAnimation(fig, animate, np.arange(1,NT), init_func=init, interval=25, blit=False)
     plt.show()
 
@@ -233,7 +232,7 @@ def AnimatedFieldDiagnostics():
     potential, = ax.plot(grid, potential_history[0], "yo-", label="Potential")
     charge, = ax.plot(grid, charge_history[0], "go-", label="Charge density")
     plt.xlim(0,L)
-    plt.ylim(-50,50)
+    plt.ylim(-10,10)
     plt.grid()
     gridpoints, = ax.plot(grid, np.zeros_like(grid), "ro", label="Grid")
     def animate(i):
@@ -246,14 +245,14 @@ def AnimatedFieldDiagnostics():
         charge.set_ydata(charge_history[0]/field_scale)
         potential.set_ydata(potential_history[0]/field_scale)
         return field, charge, potential
-    # plt.legend()
-    ani = animation.FuncAnimation(fig, animate, np.arange(1,NT), init_func=init, interval=250, blit=False)
+    plt.legend()
+    ani = animation.FuncAnimation(fig, animate, np.arange(1,NT), init_func=init, interval=25, blit=False)
     plt.show()
 
 
 N=3200
-Electrons = ParticleSpecies(N, RandomGaussian, RandomUniformVel, 1, -1)
-Positrons = ParticleSpecies(N, RandomGaussian, RandomUniformVel, 1, -1)
+Electrons = ParticleSpecies(N, NonRandomUniform, RandomUniformVel, 1, -1)
+Positrons = ParticleSpecies(N, NonRandomUniform, RandomUniformVel, 1, -1)
 Species = [Positrons, Electrons]
 
 
@@ -272,9 +271,9 @@ for i, t in enumerate(timegrid):
     l2_diff_history[i] = l2_diff
 
     for species in Species:
-        species.Update(dt, InterpolateElectricField , species.SimpleStep)
+        species.Update(dt, SinElectricField , species.SimpleStep)
 
 
 
-AnimatedFieldDiagnostics()
+# AnimatedFieldDiagnostics()
 AnimatedPhasePlotDiagnostics(Species)
