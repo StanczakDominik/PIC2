@@ -13,6 +13,9 @@ def AnimatedPhasePlotDiagnostics(species):
     ax1.grid(True)
     ax2.grid(True)
 
+    ax1.set_xlabel("Position (along grid)")
+    ax1.set_ylabel("Particle velocity")
+    ax2.set_ylabel("Grid property magnitude")
     ax1.set_title("Particles")
     ax2.set_title("Fields")
 

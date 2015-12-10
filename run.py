@@ -4,8 +4,8 @@ import distributions
 import animations
 import particles
 
-Electrons = particles.ParticleSpecies(N, distributions.NonRandomUniform, distributions.RandomUniformVel, 1, -1)
-Positrons = particles.ParticleSpecies(N, distributions.NonRandomUniform, distributions.RandomUniformVel, 1, -1)
+Electrons = particles.ParticleSpecies(N, distributions.NonRandomUniform, np.ones, 1, -1)
+Positrons = particles.ParticleSpecies(N, distributions.NonRandomUniform, distributions.negative_ones, 1, -1)
 Species = [Positrons, Electrons]
 potential_grid = np.ones_like(grid)
 for i, t in enumerate(timegrid):
@@ -25,3 +25,12 @@ for i, t in enumerate(timegrid):
 print("Finished loop...")
 
 animations.AnimatedPhasePlotDiagnostics(Species)
+
+###Saving data:
+#particle position history
+#particle velocity history
+# charge_history = np.empty((NT, NX))
+# electric_field_history = np.empty((NT, NX))
+# potential_history = np.empty((NT, NX))
+# iterations_history = np.empty(NT)
+# l2_diff_history = np.empty((NT, 20000))

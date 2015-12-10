@@ -9,12 +9,12 @@ L=1
 NX = 128
 grid, dx = np.linspace(0,L,NX, retstep=True, endpoint=False)
 
-N=4*3200
+N=2*8*3200
 SOR_omega = 2/(1+np.pi/NX)
-SOR_L2_target = 1e-8
+SOR_L2_target = 1e-9
 
-T = 0.01
-NT = 401
+T = 0.05
+NT = 801
 timegrid, dt = np.linspace(0,T,NT, retstep=True)
 
 field_scale=5000
