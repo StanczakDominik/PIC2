@@ -25,9 +25,9 @@ def AnimatedPhasePlotDiagnostics(species):
         field.set_ydata(electric_field_history[i])
         charge.set_ydata(charge_history[i])
         potential.set_ydata(potential_history[i])
-        for ax in (ax1, ax2):
-            ax.relim()
-            ax.autoscale_view()
+        # for ax in (ax1, ax2):
+        #     ax.relim()
+        #     ax.autoscale_view()
         return points, field, charge, potential, ax1, ax2
     def init():
         for j, specie in enumerate(species):
@@ -36,13 +36,13 @@ def AnimatedPhasePlotDiagnostics(species):
         field.set_ydata(electric_field_history[0])
         charge.set_ydata(charge_history[0])
         potential.set_ydata(potential_history[0])
-        for ax in (ax1, ax2):
-            ax.relim()
-            ax.autoscale_view()
+        # for ax in (ax1, ax2):
+        #     ax.relim()
+        #     ax.autoscale_view()
         return points, field, charge, potential, ax1, ax2
     plt.legend()
     print("Ready to start animation")
     ani = animation.FuncAnimation(fig, animate, np.arange(1,NT), init_func=init, interval=25, blit=False, repeat=True)
-    ani.save("./Videos/" + time.strftime("%y-%m-%d_%H-%M-%S") + ".mp4", writer='mencoder', fps=30)
+    ani.save("./Videos/" + timestamp + ".mp4", writer='mencoder', fps=30)
     print("Saved animation")
     plt.show()

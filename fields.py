@@ -93,6 +93,10 @@ def PoissonSolver(charge_grid, current_potential):
     return current_potential, iterations, l2_diff
 
 def FieldCalculation(potential_grid):
+    field = potential_grid.copy()
+    field[0]
+    for i in range(1, NX-1):
+        
     field = -np.gradient(potential_grid, dx, edge_order=2)
     return field
 

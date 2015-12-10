@@ -26,3 +26,5 @@ electric_field_history = np.empty((NT, NX))
 potential_history = np.empty((NT, NX))
 iterations_history = np.empty(NT)
 l2_diff_history = np.empty((NT, 20000))
+
+timestamp = time.strftime("%y-%m-%d_%H-%M-%S")
