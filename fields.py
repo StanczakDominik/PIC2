@@ -18,36 +18,6 @@ def SinElectricField(r, electric_field_grid=False):
 
 @jit(nopython=True)
 def InterpolateElectricField(r, electric_field_grid):
-    """Takes the position array of particles
-    Interpolates
-    field_array = np.zeros_like(r)
-
-    indices = (r//dx).astype(int)
-    full_positions = indices*dx
-    relative_positions = r-full_positions
-
-    #TODO: arrayize this
-    for particle_index, grid_index in enumerate(indices):
-        if grid_index==0:
-            pass
-            # field_array[particle_index] = relative_positions[particle_index] *\
-            #                         electric_field_grid[-1]/dx +\
-            #                         (relative_positions[particle_index]-dx)/dx*\
-            #                         electric_field_grid[grid_index+1]
-        elif grid_index==31:
-            pass
-            # field_array[particle_index] = relative_positions[particle_index] *\
-            #                         electric_field_grid[grid_index]/dx +\
-            #                         (relative_positions[particle_index]-dx)/dx*\
-            #                         electric_field_grid[grid_index+1]
-        else:
-            #TODO: this is probably incorrect somehow
-            field_array[particle_index] = relative_positions[particle_index] *\
-                                    electric_field_grid[grid_index]/dx +\
-                                    (relative_positions[particle_index]-dx)/dx*\
-                                    electric_field_grid[grid_index+1]
-    return field_array #TODO: minus tutaj?
-    """
     r = r % 1
     N = len(r)
     field_array=np.zeros(N)
@@ -73,8 +43,8 @@ def PoissonSolver(charge_grid, current_potential):
 
     while iteration_difference > SOR_L2_target:
         old_potential = current_potential.copy()
-        current_potential[0] = (1-SOR_omega)*current_potential[0] + SOR_omega*0.5*(charge_grid[0]*dx*dx + charge_grid[-1] + charge_grid[1])
-        for i in range(1,NX-1):
+        # current_potential[0] = (1-SOR_omega)*current_potential[0] + SOR_omega*0.5*(charge_grid[0]*dx*dx + charge_grid[-1] + charge_grid[1])
+        for i in range(0,NX-1):
             current_potential[i] = (1-SOR_omega)*current_potential[i] + SOR_omega*0.5*(charge_grid[i]*dx*dx + charge_grid[i-1] + charge_grid[i+1])
         current_potential[-1] = (1-SOR_omega)*current_potential[-1] + SOR_omega*0.5*(charge_grid[-1]*dx*dx + charge_grid[-2] + charge_grid[0])
 
@@ -92,13 +62,15 @@ def PoissonSolver(charge_grid, current_potential):
 
     return current_potential, iterations, l2_diff
 
+@jit(nopython=True)
 def FieldCalculation(potential_grid):
-    field = potential_grid.copy()
-    field[0]
-    for i in range(1, NX-1):
-        
-    field = -np.gradient(potential_grid, dx, edge_order=2)
-    return field
+    field = np.zeros_like(potential_grid)
+    for i in range(0, NX-1):
+        field[i] = (potential_grid[i+1]-potential_grid[i-1])/(2*dx)
+
+    field[NX-1]=(potential_grid[0]-potential_grid[NX-2])/(2*dx)
+    # field = -np.gradient(potential_grid, dx, edge_order=2)
+    return -field
 
 
 

@@ -9,7 +9,7 @@ def AnimatedPhasePlotDiagnostics(species):
     potential, = ax2.plot(grid, potential_history[0], "yo-", label="Potential")
     charge, = ax2.plot(grid, charge_history[0], "go-", label="Charge density")
     ax1.set_xlim(0,L)
-    ax1.set_ylim(-250,250)
+    ax1.set_ylim(-250*L,250*L)
     ax1.grid(True)
     ax2.grid(True)
 
