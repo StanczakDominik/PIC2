@@ -13,7 +13,7 @@ for i, t in enumerate(timegrid):
     for species in Species:
         charge_grid += species.CalculateChargeDensity()
     charge_history[i] = charge_grid
-    potential_grid, iterations, l2_diff = fields.PoissonSolver(charge_grid, potential_grid)
+    potential_grid, iterations, l2_diff = fields.TunedSORPoissonSolver(charge_grid, potential_grid)
     potential_history[i] = potential_grid
     electric_field_grid = fields.FieldCalculation(potential_grid)
     electric_field_history[i] = electric_field_grid
@@ -25,6 +25,12 @@ for i, t in enumerate(timegrid):
 print("Finished loop...")
 
 animations.AnimatedPhasePlotDiagnostics(Species)
+
+# plt.plot(iterations_history)
+# plt.show()
+# for i in l2_diff_history:
+#     plt.plot(i[i>0])
+# plt.show()
 
 ###Saving data:
 #particle position history

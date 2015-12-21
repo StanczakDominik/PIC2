@@ -32,8 +32,10 @@ def InterpolateElectricField(r, electric_field_grid):
     return field_array/dx
 
 @jit(nopython=True)
-def PoissonSolver(charge_grid, current_potential):
+def TunedSORPoissonSolver(charge_grid, current_potential):
     """
+    Solves the Poisson equation via relaxing the previous potential via tuned SOR
+    (see Practical Numerical Methods part 5)
     Takes the previous potential as candidate for calculating the new ones_like
     """
     iterations=0
@@ -61,6 +63,95 @@ def PoissonSolver(charge_grid, current_potential):
         iterations += 1
 
     return current_potential, iterations, l2_diff
+
+def L2_rel_error(p, pn):
+    ''' Compute the relative L2 norm of the difference
+    Parameters:
+    ----------
+    p : array of float
+        array 1
+    pn: array of float
+        array 2
+    Returns:
+    -------
+    Relative L2 norm of the difference
+    '''
+    return np.sqrt(np.sum((p - pn)**2)/np.sum(pn**2))
+
+# @jit(nopython=True)
+def ConjugateGradientPoissonSolver(charge_grid, current_potential):
+    r = np.zeros(NX) # residual
+    Ad = np.zeros(NX)
+
+    L2_norm = 1
+    iterations = 0
+    L2_conv = []
+
+    r[0] = charge_grid[0]*dx*dx + 2*current_potential[0] - current_potential[1] - current_potential[-1]
+    r[1:-1] = charge_grid[1:-1]*dx*dx + 2*current_potential[1:-1] - current_potential[2:] - current_potential[:-2]
+    r[-1] = charge_grid[-1]*dx*dx + 2*current_potential[-1] - current_potential[-2] - current_potential[0]
+    d = r.copy()
+    rho = np.sum(r*r)
+    Ad[0] = -2*d[0]+d[1]+d[-1]
+    Ad[1:-1] = -2*d[1:-1]+d[2:]+d[:-2]
+    Ad[-1] = -2*d[-1]+d[0]+d[-2]
+
+    sigma = np.sum(d*Ad)
+
+    while L2_norm > SOR_L2_target:
+        # not sure this is helpful
+        pk = current_potential.copy()
+        rk = r.copy()
+        dk = d.copy()
+
+        alpha = rho/sigma
+
+        current_potential += alpha*dk
+        # current_potential = pk + alpha*dk
+        # r = rk - alpha*Ad
+        r -= alpha*Ad
+
+        rhop1 = np.sum(r*r)
+        beta = rhop1/rho
+        rho = rhop1
+
+        d = r + beta*dk
+        Ad[0] = -2*d[0] + d[2] + d[-2]
+        Ad[1:-1] = -2*d[1:-1] + d[2:] + d[:-2]
+        Ad[-1] = -2*d[-1] + d[2] + d[-2]
+        sigma = np.sum(d*Ad)
+
+        L2_norm=L2_rel_error(pk, current_potential)
+        iterations += 1
+        L2_conv.append(L2_norm)
+        # print(iterations, L2_norm)
+    return current_potential, iterations, L2_conv
+
+if __name__=="__main__":
+    charge = np.sin(grid/np.max(grid)*np.pi)
+    zeroes = np.ones_like(charge)
+    TSp, TSiters, TSconv = TunedSORPoissonSolver(charge,zeroes)
+    print(TSp, TSiters)
+    CGp, CGiters, CGconv = ConjugateGradientPoissonSolver(charge, zeroes)
+    print(CGp, CGiters)
+
+    Difference = CGp-TSp
+    print(L2_rel_error(CGp, TSp))
+    plt.figure(1)
+    plt.plot(grid, charge, label="Charge")
+    plt.plot(grid, TSp, label="Tuned SOR")
+    plt.plot(grid, CGp, label="Conjugate Gradient")
+    plt.plot(grid, Difference, label="Difference")
+    plt.legend()
+    plt.show()
+
+    plt.figure(2)
+    plt.plot(TSconv, label="Tuned SOR convergence")
+    plt.plot(CGconv, label="CG convergence")
+    plt.legend()
+    plt.show()
+
+
 
 @jit(nopython=True)
 def FieldCalculation(potential_grid):

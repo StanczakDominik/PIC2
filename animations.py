@@ -19,8 +19,8 @@ def AnimatedPhasePlotDiagnostics(species):
     ax1.set_title("Particles")
     ax2.set_title("Fields")
 
-    gridpoints1, = ax1.plot(grid, np.zeros_like(grid), "ro", label="Grid")
-    gridpoints2, = ax2.plot(grid, np.zeros_like(grid), "ro", label="Grid")
+    # gridpoints1, = ax1.plot(grid, np.zeros_like(grid), "ro", label="Grid")
+    # gridpoints2, = ax2.plot(grid, np.zeros_like(grid), "ro", label="Grid")
     def animate(i):
         for j, specie in enumerate(species):
             points[j].set_xdata(specie.r_history[i])
