@@ -15,8 +15,8 @@ N=3200*8
 SOR_omega = 2/(1+np.pi/NX)
 SOR_L2_target = 1e-8
 
-T = 0.01/100000
-NT = 3
+T = 0.01/1000/5
+NT = 101
 timegrid, dt = np.linspace(0,T,NT, retstep=True)
 
 field_scale=5000
