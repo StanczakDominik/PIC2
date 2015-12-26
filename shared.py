@@ -4,17 +4,19 @@ import matplotlib.animation as animation
 import numba
 from numba import jit
 import time
+import sys
+import argparse
 
 L=1
 NX = 256
 grid, dx = np.linspace(0,L,NX, retstep=True, endpoint=False)
 
-N=3200
+N=3200*8
 SOR_omega = 2/(1+np.pi/NX)
-SOR_L2_target = 5e-5
+SOR_L2_target = 1e-8
 
-T = 0.01
-NT = 801
+T = 0.01/100000
+NT = 3
 timegrid, dt = np.linspace(0,T,NT, retstep=True)
 
 field_scale=5000

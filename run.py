@@ -3,6 +3,12 @@ import fields
 import distributions
 import animations
 import particles
+import interpolation
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--save", help="save animation", action="store_true")
+args=parser.parse_args()
+save_animation=args.save
 
 Electrons = particles.ParticleSpecies(N, distributions.NonRandomUniform, np.ones, 1, -1)
 Positrons = particles.ParticleSpecies(N, distributions.NonRandomUniform, distributions.negative_ones, 1, -1)
@@ -21,22 +27,9 @@ for i, t in enumerate(timegrid):
     l2_diff_history[i] = l2_diff
 
     for species in Species:
-        species.Update(dt, fields.InterpolateElectricField, species.SimpleStep, electric_field_grid)
-print("Finished loop...")
+        species.Update(dt, interpolation.InterpolateElectricField, species.SimpleStep, electric_field_grid)
+    sys.stdout.write("\rSimulation progress %d%%" % (100*i/len(timegrid)))
+    sys.stdout.flush()
+print("\rFinished loop...                  ")
 
-animations.AnimatedPhasePlotDiagnostics(Species)
-
-# plt.plot(iterations_history)
-# plt.show()
-# for i in l2_diff_history:
-#     plt.plot(i[i>0])
-# plt.show()
-
-###Saving data:
-#particle position history
-#particle velocity history
-# charge_history = np.empty((NT, NX))
-# electric_field_history = np.empty((NT, NX))
-# potential_history = np.empty((NT, NX))
-# iterations_history = np.empty(NT)
-# l2_diff_history = np.empty((NT, 20000))
+animations.AnimatedPhasePlotDiagnostics(Species, save_animation)

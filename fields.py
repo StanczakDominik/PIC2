@@ -17,21 +17,6 @@ def SinElectricField(r, electric_field_grid=False):
     return -np.sin((r-L/2))
 
 @jit(nopython=True)
-def InterpolateElectricField(r, electric_field_grid):
-    r = r % 1
-    N = len(r)
-    field_array=np.zeros(N)
-    for i in range(N):
-        ind = int(r[i]//dx)
-        if ind == NX-1:
-            field_array[i] += (r[i]-grid[ind]) * electric_field_grid[ind]
-            field_array[i] += (L-r[i]) * electric_field_grid[0]
-        else:
-            field_array[i] += (r[i]-grid[ind]) * electric_field_grid[ind]
-            field_array[i] += (grid[ind+1]-r[i]) * electric_field_grid[ind+1]
-    return field_array/dx
-
-@jit(nopython=True)
 def TunedSORPoissonSolver(charge_grid, current_potential):
     """
     Solves the Poisson equation via relaxing the previous potential via tuned SOR
@@ -45,10 +30,8 @@ def TunedSORPoissonSolver(charge_grid, current_potential):
 
     while iteration_difference > SOR_L2_target:
         old_potential = current_potential.copy()
-        # current_potential[0] = (1-SOR_omega)*current_potential[0] + SOR_omega*0.5*(charge_grid[0]*dx*dx + charge_grid[-1] + charge_grid[1])
-        for i in range(0,NX-1):
-            current_potential[i] = (1-SOR_omega)*current_potential[i] + SOR_omega*0.5*(charge_grid[i]*dx*dx + charge_grid[i-1] + charge_grid[i+1])
-        current_potential[-1] = (1-SOR_omega)*current_potential[-1] + SOR_omega*0.5*(charge_grid[-1]*dx*dx + charge_grid[-2] + charge_grid[0])
+        for i in range(0,NX):
+            current_potential[i] = (1-SOR_omega)*current_potential[i] + SOR_omega*0.5*(charge_grid[i]*dx*dx + current_potential[i-1] + current_potential[i+1])
 
         iteration_difference = 0.0
         denominator = 0.0
@@ -78,6 +61,9 @@ def L2_rel_error(p, pn):
     '''
     return np.sqrt(np.sum((p - pn)**2)/np.sum(pn**2))
 
+
+
+#TODO: this is broken somehow
 # @jit(nopython=True)
 def ConjugateGradientPoissonSolver(charge_grid, current_potential):
     r = np.zeros(NX) # residual
@@ -87,9 +73,9 @@ def ConjugateGradientPoissonSolver(charge_grid, current_potential):
     iterations = 0
     L2_conv = []
 
-    r[0] = charge_grid[0]*dx*dx + 2*current_potential[0] - current_potential[1] - current_potential[-1]
+    # r[0] = charge_grid[0]*dx*dx + 2*current_potential[0] - current_potential[1] - current_potential[-1]
     r[1:-1] = charge_grid[1:-1]*dx*dx + 2*current_potential[1:-1] - current_potential[2:] - current_potential[:-2]
-    r[-1] = charge_grid[-1]*dx*dx + 2*current_potential[-1] - current_potential[-2] - current_potential[0]
+    # r[-1] = charge_grid[-1]*dx*dx + 2*current_potential[-1] - current_potential[-2] - current_potential[0]
     d = r.copy()
     rho = np.sum(r*r)
     Ad[0] = -2*d[0]+d[1]+d[-1]
@@ -116,9 +102,9 @@ def ConjugateGradientPoissonSolver(charge_grid, current_potential):
         rho = rhop1
 
         d = r + beta*dk
-        Ad[0] = -2*d[0] + d[2] + d[-2]
+        # Ad[0] = -2*d[0] + d[2] + d[-2]
         Ad[1:-1] = -2*d[1:-1] + d[2:] + d[:-2]
-        Ad[-1] = -2*d[-1] + d[2] + d[-2]
+        # Ad[-1] = -2*d[-1] + d[2] + d[-2]
         sigma = np.sum(d*Ad)
 
         L2_norm=L2_rel_error(pk, current_potential)
@@ -127,79 +113,73 @@ def ConjugateGradientPoissonSolver(charge_grid, current_potential):
         # print(iterations, L2_norm)
     return current_potential, iterations, L2_conv
 
-if __name__=="__main__":
-    charge = np.sin(grid/np.max(grid)*np.pi)
-    zeroes = np.ones_like(charge)
-    TSp, TSiters, TSconv = TunedSORPoissonSolver(charge,zeroes)
-    print(TSp, TSiters)
-    CGp, CGiters, CGconv = ConjugateGradientPoissonSolver(charge, zeroes)
-    print(CGp, CGiters)
 
-    Difference = CGp-TSp
-    print(L2_rel_error(CGp, TSp))
-    plt.figure(1)
-    plt.plot(grid, charge, label="Charge")
-    plt.plot(grid, TSp, label="Tuned SOR")
-    plt.plot(grid, CGp, label="Conjugate Gradient")
-    plt.plot(grid, Difference, label="Difference")
-    plt.legend()
-    plt.show()
-
-    plt.figure(2)
-    plt.plot(TSconv, label="Tuned SOR convergence")
-    plt.plot(CGconv, label="CG convergence")
-    plt.legend()
-    plt.show()
-
-
-
-@jit(nopython=True)
+# @jit(nopython=True)
 def FieldCalculation(potential_grid):
     field = np.zeros_like(potential_grid)
     for i in range(0, NX-1):
-        field[i] = (potential_grid[i+1]-potential_grid[i-1])/(2*dx)
+        field[i] = (-potential_grid[i+1]+potential_grid[i-1])/(2*dx)
+    field[NX-1]=(-potential_grid[0]+potential_grid[NX-2])/(2*dx)
+    return field
 
-    field[NX-1]=(potential_grid[0]-potential_grid[NX-2])/(2*dx)
-    # field = -np.gradient(potential_grid, dx, edge_order=2)
-    return -field
+if __name__=="__main__":
+    charge = np.sin(grid*2*np.pi/L)
+    zeroes = np.ones_like(charge)
+    TSp, TSiters, TSconv = TunedSORPoissonSolver(charge,zeroes)
+    print(TSp, TSiters)
+    fig, (ax1, ax2, ax3) = plt.subplots(3, sharex=True, sharey=False)
+    ax1.plot(grid, np.zeros_like(grid), "ro")
+    ax1.plot(grid, charge, label="Charge")
+    ax2.plot(grid, TSp, label="Tuned SOR")
+    ax2.plot(grid, np.zeros_like(grid), "ro")
+    ax3.plot(grid, FieldCalculation(TSp), label="TSP field")
+    ax3.plot(grid, np.zeros_like(grid), "ro")
+    ax2.legend()
+    ax3.legend()
+    plt.show()
 
+def test_gradient_ramp_potential():
+    #this test fails at the boundary
+    # a ramp potential would require a x**3 charge distribution
+    potential_grid = grid-0.5*L
+    electric_field = FieldCalculation(potential_grid)
+    goal = -np.ones_like(grid)
 
+    condition = (electric_field[1:-1]==goal[1:-1]).all()
+    if not condition:
+        plt.title("ramp potential electric field")
+        plt.plot(grid, potential_grid, "go-", label="potential")
+        plt.plot(grid, electric_field, "bo-", label="field")
+        plt.plot(grid, goal, "ro--", label="goal")
+        plt.legend()
+        plt.show()
+    assert condition, "not all fields are proportional to spatial gradient"
 
-TestElectricField = RampElectricField
-def test_at_regular_gridpoint_InterpolateElectricField():
-    electric_field_grid = TestElectricField(grid)
-    r = np.asarray([dx])
-    test_field = InterpolateElectricField(r, electric_field_grid)
-    target = electric_field_grid[1]
-    print(r, test_field, target)
-    assert test_field==target
+def test_gradient_constant_potential():
+    potential_grid = np.ones_like(grid)
+    electric_field = FieldCalculation(potential_grid)
 
-def test_at_half_interval_InterpolateElectricField():
-    electric_field_grid = TestElectricField(grid)
-    r = np.asarray([1.5*dx])
-    test_field = InterpolateElectricField(r, electric_field_grid)
-    target = (electric_field_grid[1]+electric_field_grid[2])/2
-    print(r, test_field, target)
-    assert test_field == target
+    condition = (electric_field==0).all()
+    if not condition:
+        plt.title("constant potential electric field")
+        plt.plot(grid, electric_field)
+        plt.show()
+    assert condition, "not all fields are zero"
 
-def test_at_175_interval_InterpolateElectricField():
-    electric_field_grid = TestElectricField(grid)
-    r = np.asarray([1.75*dx])
-    test_field = InterpolateElectricField(r, electric_field_grid)
-    target = 0.25*electric_field_grid[1]+0.75*electric_field_grid[2]
-    print(r, test_field, target)
-    assert test_field == target
-def test_at_zero_InterpolateElectricField():
-    electric_field_grid = TestElectricField(grid)
-    r = np.asarray([0])
-    test_field = InterpolateElectricField(r, electric_field_grid)
-    target = electric_field_grid[0]
-    print(r, test_field, target)
-    assert test_field == target
-def test_at_last_InterpolateElectricField():
-    electric_field_grid = TestElectricField(grid)
-    r = np.asarray([L])
-    test_field = InterpolateElectricField(r, electric_field_grid)
-    target = electric_field_grid[0]
-    print(r, test_field, target)
-    assert test_field == target
+def test_gradient_sin_potential():
+    potential_grid = np.sin(grid*2*np.pi/L)
+    electric_field = FieldCalculation(potential_grid)
+    goal = -2*np.pi/L*np.cos(grid*2*np.pi/L)
+
+    error = L2_rel_error(goal, electric_field)
+    print(error)
+    condition = error < 0.05
+    if not condition:
+        plt.title("ramp potential electric field")
+        plt.plot(grid, potential_grid, "go-", label="potential")
+        plt.plot(grid, electric_field, "bo-", label="field")
+        plt.plot(grid, goal, "ro--", label="goal")
+        plt.legend()
+        plt.show()
+    assert condition, "not all fields are proportional to spatial gradient"
+    return error

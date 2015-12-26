@@ -1,7 +1,7 @@
 from shared import *
 
 def NonRandomUniform(N):
-    return np.linspace(0,L,N)
+    return np.linspace(0,L,N, endpoint=False)
 
 def negative_ones(N):
     return -np.ones(N)*L
