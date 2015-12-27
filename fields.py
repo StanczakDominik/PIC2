@@ -47,22 +47,6 @@ def TunedSORPoissonSolver(charge_grid, current_potential):
 
     return current_potential, iterations, l2_diff
 
-def L2_rel_error(p, pn):
-    ''' Compute the relative L2 norm of the difference
-    Parameters:
-    ----------
-    p : array of float
-        array 1
-    pn: array of float
-        array 2
-    Returns:
-    -------
-    Relative L2 norm of the difference
-    '''
-    return np.sqrt(np.sum((p - pn)**2)/np.sum(pn**2))
-
-
-
 #TODO: this is broken somehow
 # @jit(nopython=True)
 def ConjugateGradientPoissonSolver(charge_grid, current_potential):

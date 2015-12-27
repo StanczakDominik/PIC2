@@ -11,7 +11,7 @@ args=parser.parse_args()
 save_animation=args.save
 
 Electrons = particles.ParticleSpecies(N, distributions.NonRandomUniform, np.ones, 1, -1)
-Positrons = particles.ParticleSpecies(N, distributions.NonRandomUniform, distributions.negative_ones, 1, -1)
+Positrons = particles.ParticleSpecies(N, distributions.NonRandomUniform, distributions.negative_ones, 1, +1)
 Species = [Positrons, Electrons]
 potential_grid = np.ones_like(grid)
 for i, t in enumerate(timegrid):
